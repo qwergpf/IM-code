@@ -8,12 +8,14 @@
 sudo apt update
 sudo apt install -y \
   build-essential cmake ninja-build \
-  libboost-system-dev libpqxx-dev \
+  pkg-config libboost-system-dev libpqxx-dev \
   protobuf-compiler libprotobuf-dev \
   libgtest-dev \
   postgresql postgresql-contrib \
   python3 python3-protobuf
 ```
+
+Ubuntu 22.04 的 `libpqxx-dev 6.4` 不提供 `libpqxxConfig.cmake`，项目会自动回退到 `pkg-config` 查找 `libpqxx`。
 
 ## 2. 初始化开发数据库
 

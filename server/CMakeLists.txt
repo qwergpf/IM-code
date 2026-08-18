@@ -1,7 +1,19 @@
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
-find_package(libpqxx CONFIG REQUIRED)
+
+# Newer libpqxx releases provide a CMake package, while Ubuntu 22.04's
+# libpqxx-dev 6.4 package only provides pkg-config metadata. Support both.
+find_package(libpqxx CONFIG QUIET)
+if(TARGET libpqxx::pqxx)
+    set(IM_PQXX_TARGET libpqxx::pqxx)
+elseif(TARGET pqxx)
+    set(IM_PQXX_TARGET pqxx)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(PQXX REQUIRED IMPORTED_TARGET libpqxx)
+    set(IM_PQXX_TARGET PkgConfig::PQXX)
+endif()
 
 set(IM_PROTOCOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/protocol/im_protocol.proto)
 protobuf_generate_cpp(IM_PROTO_SOURCES IM_PROTO_HEADERS ${IM_PROTOCOL_FILE})
@@ -47,7 +59,7 @@ target_link_libraries(im_server_core
         im_protocol
         Boost::system
         Threads::Threads
-        pqxx
+        ${IM_PQXX_TARGET}
 )
 
 add_executable(im_server src/main.cpp)
