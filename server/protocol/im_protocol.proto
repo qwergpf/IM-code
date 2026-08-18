@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package im.protocol.v1;
+
+message PingRequest {
+  string text = 1;
+}
+
+message PingResponse {
+  string text = 1;
+  int64 server_time_unix_ms = 2;
+}
+
+message DatabaseHealthRequest {}
+
+message DatabaseHealthResponse {
+  bool healthy = 1;
+  string database_name = 2;
+  string message = 3;
+}
+
+message ErrorResponse {
+  uint32 code = 1;
+  string message = 2;
+}
+
+message Envelope {
+  uint32 protocol_version = 1;
+  string request_id = 2;
+
+  oneof payload {
+    PingRequest ping_request = 10;
+    PingResponse ping_response = 11;
+    DatabaseHealthRequest database_health_request = 12;
+    DatabaseHealthResponse database_health_response = 13;
+    ErrorResponse error_response = 100;
+  }
+}

@@ -1,0 +1,29 @@
+# CMake build directories
+build/
+build-*/
+
+# IDE and compiler-generated files
+.vs/
+.vscode/
+.qtcreator/
+*.user
+*.user.*
+*.suo
+*.obj
+*.pdb
+*.ilk
+*.exe
+
+# Qt generated files
+*_autogen/
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*_pb2.py
+__pycache__/
+
+# Local configuration and logs
+*.log
+.env
+.env.*
+!.env.example
