@@ -32,7 +32,7 @@
 - C++17
 - Boost.Asio
 - CMake
-- PostgreSQL
+- MySQL
 - Redis 可作为后续扩展
 - GoogleTest
 - Ubuntu Linux

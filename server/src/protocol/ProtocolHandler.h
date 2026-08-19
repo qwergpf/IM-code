@@ -1,27 +1,26 @@
 #pragma once
 
+#include "database/DatabaseManager.h"
 #include "im_protocol.pb.h"
 
 #include <cstdint>
-#include <functional>
+#include <memory>
 #include <string>
 
-class RequestHandler
+class ProtocolHandler final
 {
 public:
-    using DatabaseHealthCheck = std::function<bool(std::string&)>;
-
-    RequestHandler(std::string databaseName, DatabaseHealthCheck healthCheck);
+    explicit ProtocolHandler(std::shared_ptr<DatabaseManager> database);
 
     im::protocol::v1::Envelope handle(
+        std::uint32_t messageType,
         const im::protocol::v1::Envelope& request) const;
 
     static im::protocol::v1::Envelope errorResponse(
         const std::string& requestId,
-        std::uint32_t code,
+        im::protocol::v1::ErrorCode code,
         const std::string& message);
 
 private:
-    std::string databaseName_;
-    DatabaseHealthCheck healthCheck_;
+    std::shared_ptr<DatabaseManager> database_;
 };

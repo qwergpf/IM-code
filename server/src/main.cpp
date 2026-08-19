@@ -1,39 +1,25 @@
-#include "config/ServerConfig.h"
-#include "database/Database.h"
-#include "gateway/TcpServer.h"
-#include "protocol/RequestHandler.h"
-
-#include <boost/asio/io_context.hpp>
+#include "config/ConfigManager.h"
+#include "logging/Logger.h"
+#include "server/ServerApplication.h"
 
 #include <exception>
-#include <iostream>
-#include <memory>
-#include <utility>
+#include <string>
 
-int main()
+int main(int argc, char* argv[])
 {
     try {
-        const ServerConfig config = ServerConfig::fromEnvironment();
-        auto database = std::make_shared<Database>(config);
-        database->verifyConnection();
+        std::string configPath = "server.conf";
+        if (argc == 3 && std::string(argv[1]) == "--config") {
+            configPath = argv[2];
+        } else if (argc != 1) {
+            Logger::error("Usage: server [--config path]");
+            return 2;
+        }
 
-        auto requestHandler = std::make_shared<RequestHandler>(
-            database->databaseName(),
-            [database](std::string& message) {
-                return database->isHealthy(message);
-            });
-
-        boost::asio::io_context ioContext;
-        TcpServer server(ioContext, config.serverHost, config.serverPort,
-                         std::move(requestHandler));
-
-        std::cout << "IM server listening on " << config.serverHost << ':'
-                  << config.serverPort << " using database "
-                  << config.databaseName << '\n';
-        ioContext.run();
-        return 0;
+        const ServerConfig config = ConfigManager::load(configPath);
+        return ServerApplication{}.run(config);
     } catch (const std::exception& error) {
-        std::cerr << "IM server startup failed: " << error.what() << '\n';
+        Logger::error(std::string("Server startup failed: ") + error.what());
         return 1;
     }
 }

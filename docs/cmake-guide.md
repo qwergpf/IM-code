@@ -57,9 +57,16 @@ C:\Users\gpf\Desktop\IM code\
 │       ├── main.cpp
 │       ├── MainWindow.h
 │       └── MainWindow.cpp
+├── server/
+│   ├── CMakeLists.txt
+│   ├── config/
+│   ├── protocol/
+│   ├── src/
+│   └── tests/
 ├── docs/
-│   └── cmake-guide.md
-└── test.cpp
+│   ├── cmake-guide.md
+│   ├── protocol.md
+│   └── server-setup.md
 ```
 
 构建目录与源码目录分离：
@@ -112,10 +119,9 @@ project(IMChat
     LANGUAGES CXX
 )
 
+option(IM_BUILD_CLIENT "Build Qt desktop client" ${WIN32})
+option(IM_BUILD_SERVER "Build Linux IM server" ${UNIX})
 include(CTest)
-
-option(IM_BUILD_CLIENT "Build Qt desktop client" ON)
-option(IM_BUILD_SERVER "Build Linux IM server" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -128,41 +134,31 @@ else()
 endif()
 
 if(IM_BUILD_CLIENT)
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTORCC ON)
     add_subdirectory(client)
 endif()
 
 if(IM_BUILD_SERVER)
-    add_subdirectory(server)
+    add_subdirectory(server server-build)
 endif()
 ```
 
 ``CMAKE_CXX_STANDARD``、``CMAKE_CXX_STANDARD_REQUIRED`` 和 ``CMAKE_CXX_EXTENSIONS`` 表示使用并强制要求 C++17，且关闭编译器私有扩展。
 
-Qt 自动处理选项放在 `client/CMakeLists.txt` 中，避免只构建 Ubuntu 服务端时引入 Qt 配置：
+Qt 自动处理选项只在 `IM_BUILD_CLIENT=ON` 时开启，避免 Ubuntu 服务端配置时要求 Qt：
 
 - `CMAKE_AUTOMOC`：处理含 Qt 元对象代码的类，例如含 `Q_OBJECT` 的类。
 - `CMAKE_AUTOUIC`：自动处理 Qt Designer 的 `.ui` 文件。
 - `CMAKE_AUTORCC`：自动处理 Qt 资源 `.qrc` 文件。
 
-`IM_BUILD_CLIENT` 和 `IM_BUILD_SERVER` 让 Windows 客户端与 Ubuntu 服务端可以独立配置，避免客户端构建要求安装 Boost、PostgreSQL 和 Protobuf。`include(CTest)` 提供 `BUILD_TESTING` 开关。
-
-条件化的 `add_subdirectory` 会按开关读取对应子项目。Ubuntu 服务端构建使用：
-
-```bash
-cmake -S . -B build-server -G Ninja \
-  -DIM_BUILD_CLIENT=OFF \
-  -DIM_BUILD_SERVER=ON \
-  -DBUILD_TESTING=ON
-```
+`add_subdirectory(client)` 和 `add_subdirectory(server)` 会根据开关加入对应子项目。Windows 默认只构建客户端，Linux 默认只构建服务端，也可以通过 CMake 参数显式覆盖。
 
 ## 6. 当前客户端 CMakeLists.txt 解析
 
 ```cmake
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
-
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
 
 qt_add_executable(im_client
     src/main.cpp
@@ -313,7 +309,7 @@ qt_add_executable(im_client
 )
 ```
 
-客户端目录已经开启 `CMAKE_AUTOUIC`，因此 Qt 会自动处理 `.ui` 文件。
+根目录已经开启 `CMAKE_AUTOUIC`，因此 Qt 会自动处理 `.ui` 文件。
 
 ### Qt 资源 `.qrc` 文件
 
@@ -324,7 +320,7 @@ qt_add_executable(im_client
 )
 ```
 
-客户端目录已经开启 `CMAKE_AUTORCC`，因此 Qt 会自动生成资源代码。
+根目录已经开启 `CMAKE_AUTORCC`，因此 Qt 会自动生成资源代码。
 
 ## 9. 构建目录和生成器
 
@@ -549,14 +545,19 @@ target_link_libraries(im_client PRIVATE
 
 ### 服务端
 
-建立 `server/` 后，根目录可写：
+当前根目录通过构建开关加入两个子项目：
 
 ```cmake
-add_subdirectory(client)
-add_subdirectory(server)
+if(IM_BUILD_CLIENT)
+    add_subdirectory(client)
+endif()
+
+if(IM_BUILD_SERVER)
+    add_subdirectory(server server-build)
+endif()
 ```
 
-服务端可以使用 Boost.Asio、PostgreSQL 和独立的 `server/CMakeLists.txt`。
+服务端可以使用 Boost.Asio、MySQL 和独立的 `server/CMakeLists.txt`。
 
 ### 测试
 
@@ -574,6 +575,17 @@ Linux 上通常使用 Bash：
 ```bash
 cmake -S . -B build-linux -G Ninja
 cmake --build build-linux
+```
+
+服务端构建示例：
+
+```bash
+cmake -S . -B build-server -G Ninja \
+  -DIM_BUILD_CLIENT=OFF \
+  -DIM_BUILD_SERVER=ON \
+  -DBUILD_TESTING=ON
+cmake --build build-server
+ctest --test-dir build-server --output-on-failure
 ```
 
 同一套目标化 CMake 写法可以复用，差异主要在依赖安装、编译器和部署方式。

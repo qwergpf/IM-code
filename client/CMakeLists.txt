@@ -1,9 +1,5 @@
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
 qt_add_executable(im_client
     src/main.cpp
     src/MainWindow.h

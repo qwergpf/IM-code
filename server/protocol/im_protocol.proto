@@ -2,26 +2,90 @@ syntax = "proto3";
 
 package im.protocol.v1;
 
+enum MessageType {
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  MESSAGE_TYPE_PING_REQUEST = 1;
+  MESSAGE_TYPE_PING_RESPONSE = 2;
+  MESSAGE_TYPE_DATABASE_HEALTH_REQUEST = 3;
+  MESSAGE_TYPE_DATABASE_HEALTH_RESPONSE = 4;
+  MESSAGE_TYPE_REGISTER_REQUEST = 10;
+  MESSAGE_TYPE_REGISTER_RESPONSE = 11;
+  MESSAGE_TYPE_LOGIN_REQUEST = 12;
+  MESSAGE_TYPE_LOGIN_RESPONSE = 13;
+  MESSAGE_TYPE_ERROR_RESPONSE = 100;
+}
+
+enum ErrorCode {
+  ERROR_CODE_OK = 0;
+  ERROR_CODE_MALFORMED_PACKET = 1001;
+  ERROR_CODE_UNSUPPORTED_PROTOCOL_VERSION = 1002;
+  ERROR_CODE_MISSING_REQUEST_ID = 1003;
+  ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE = 1004;
+  ERROR_CODE_MESSAGE_TYPE_MISMATCH = 1005;
+  ERROR_CODE_NOT_IMPLEMENTED = 1006;
+  ERROR_CODE_DATABASE_UNAVAILABLE = 2001;
+}
+
+enum ResponseStatus {
+  RESPONSE_STATUS_UNSPECIFIED = 0;
+  RESPONSE_STATUS_OK = 1;
+  RESPONSE_STATUS_ERROR = 2;
+}
+
+message UserProfile {
+  uint64 user_id = 1;
+  string username = 2;
+  string display_name = 3;
+}
+
 message PingRequest {
   string text = 1;
 }
 
 message PingResponse {
-  string text = 1;
-  int64 server_time_unix_ms = 2;
+  uint32 code = 1;
+  string message = 2;
+  string text = 3;
+  int64 server_time_unix_ms = 4;
 }
 
 message DatabaseHealthRequest {}
 
 message DatabaseHealthResponse {
-  bool healthy = 1;
-  string database_name = 2;
-  string message = 3;
+  uint32 code = 1;
+  string message = 2;
+  bool healthy = 3;
+  string database_name = 4;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+  string display_name = 3;
+}
+
+message RegisterResponse {
+  uint32 code = 1;
+  string message = 2;
+  UserProfile user = 3;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  uint32 code = 1;
+  string message = 2;
+  UserProfile user = 3;
+  string session_token = 4;
 }
 
 message ErrorResponse {
   uint32 code = 1;
   string message = 2;
+  ResponseStatus status = 3;
 }
 
 message Envelope {
@@ -33,6 +97,10 @@ message Envelope {
     PingResponse ping_response = 11;
     DatabaseHealthRequest database_health_request = 12;
     DatabaseHealthResponse database_health_response = 13;
+    RegisterRequest register_request = 20;
+    RegisterResponse register_response = 21;
+    LoginRequest login_request = 22;
+    LoginResponse login_response = 23;
     ErrorResponse error_response = 100;
   }
 }

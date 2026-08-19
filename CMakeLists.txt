@@ -5,10 +5,9 @@ project(IMChat
     LANGUAGES CXX
 )
 
+option(IM_BUILD_CLIENT "Build Qt desktop client" ${WIN32})
+option(IM_BUILD_SERVER "Build Linux IM server" ${UNIX})
 include(CTest)
-
-option(IM_BUILD_CLIENT "Build Qt desktop client" ON)
-option(IM_BUILD_SERVER "Build Linux IM server" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,9 +20,12 @@ else()
 endif()
 
 if(IM_BUILD_CLIENT)
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTORCC ON)
     add_subdirectory(client)
 endif()
 
 if(IM_BUILD_SERVER)
-    add_subdirectory(server)
+    add_subdirectory(server server-build)
 endif()

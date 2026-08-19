@@ -1,54 +1,39 @@
-# IM 协议框架 v1
+# IM 服务端协议
 
-## 1. 传输帧
+## TCP 封包
 
-服务端基于 TCP。TCP 是字节流，不保留发送端的消息边界，因此每个 Protobuf 消息使用固定长度头：
+TCP 是字节流，不能假设一次 `recv` 就对应一个完整消息。每个数据包使用网络字节序的大端格式：
 
 ```text
-4 字节无符号大端整数：Protobuf 消息体长度
-N 字节：序列化后的 im.protocol.v1.Envelope
+4 字节 body_length
+4 字节 message_type
+body_length 字节 Protobuf Envelope
 ```
 
-- 长度头使用网络字节序。
-- 消息体不能为空。
-- 单个消息体最大为 1 MiB。
-- 长度为 0 或超过上限时，服务端关闭连接。
-- 服务端使用精确长度异步读取，因此能够处理 TCP 半包和粘包。
+单个 body 最大为 1 MiB。零长度或超限数据包会被拒绝。服务端的 `PacketStreamDecoder` 支持半包和粘包。
 
-## 2. Envelope
+## 协议消息
 
-协议定义位于 `server/protocol/im_protocol.proto`，顶层消息统一包含：
+当前协议定义在 `server/protocol/im_protocol.proto`，版本为 `1`，可处理：
 
-- `protocol_version`：当前固定为 `1`。
-- `request_id`：请求唯一标识，响应必须原样回传。
-- `payload`：通过 Protobuf `oneof` 保存具体请求或响应。
+- Ping 请求和响应
+- MySQL 健康检查请求和响应
+- 注册、登录协议占位消息
+- 统一错误响应
 
-当前消息类型：
+每个请求必须有非空 `request_id`，响应会返回相同值。包头 `message_type` 必须与 `Envelope` 中的 payload 类型一致。
 
-| 消息 | 方向 | 作用 |
-| --- | --- | --- |
-| `PingRequest` | 客户端 → 服务端 | 验证 TCP 和 Protobuf 链路 |
-| `PingResponse` | 服务端 → 客户端 | 回显文本和服务端时间 |
-| `DatabaseHealthRequest` | 客户端 → 服务端 | 检查 PostgreSQL 连接 |
-| `DatabaseHealthResponse` | 服务端 → 客户端 | 返回非敏感数据库健康状态 |
-| `ErrorResponse` | 服务端 → 客户端 | 返回稳定错误码和可读错误信息 |
+## 错误码
 
-## 3. 错误码
+| 错误码 | 含义 |
+| ---: | --- |
+| 0 | 成功 |
+| 1001 | 数据包或 Protobuf 无法解析 |
+| 1002 | 不支持的协议版本 |
+| 1003 | 缺少 request_id |
+| 1004 | 不支持的消息类型 |
+| 1005 | 包头类型与 Protobuf payload 不一致 |
+| 1006 | 当前阶段未实现 |
+| 2001 | MySQL 不可用 |
 
-| 错误码 | 名称 | 含义 |
-| --- | --- | --- |
-| `1001` | `MALFORMED_MESSAGE` | Protobuf 消息无法解析；响应后关闭连接 |
-| `1002` | `UNSUPPORTED_PROTOCOL_VERSION` | 不支持请求中的协议版本 |
-| `1003` | `MISSING_REQUEST_ID` | 请求没有携带 `request_id` |
-| `1004` | `UNSUPPORTED_MESSAGE_TYPE` | 客户端发送了不支持的消息类型 |
-| `2001` | `DATABASE_UNAVAILABLE` | 为后续数据库业务操作预留 |
-
-数据库健康检查本身返回 `DatabaseHealthResponse{healthy=false}`，说明文本固定为非敏感信息，不返回连接字符串、账号、密码或底层 SQL 错误。
-
-## 4. 扩展规则
-
-- 新请求和响应必须在 `Envelope.oneof payload` 中使用新的字段编号。
-- 已发布字段编号不得复用或更改含义。
-- 所有请求必须验证协议版本和 `request_id`。
-- 新增或修改消息时必须同步更新 C++ 单元测试、Python 冒烟测试和本文档。
-- 文件传输不能把大文件直接塞进单个 Envelope；后续应使用文件元数据消息与独立分片传输流程。
+注册和登录目前只定义消息，不处理真实业务；在加入 TLS 前不要通过该协议传输真实密码。
